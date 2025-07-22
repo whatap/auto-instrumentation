@@ -1,15 +1,18 @@
 FROM python:3.10-slim
 
+# 빌드 인자로 에이전트 버전을 받습니다
+ARG WHATAP_AGENT_VERSION=1.8.5
+
 # 작업 디렉터리 설정
 WORKDIR /tmp
 
 # Python APM 에이전트 다운로드 및 압축 해제
 RUN apt-get update && apt-get install -y wget && \
-    wget https://files.pythonhosted.org/packages/36/81/964fefc7f547c45e09a67ec42af791a5625053a2e232ac84fae33690ef4d/whatap_python-1.8.5.tar.gz && \
-    tar xzvf whatap_python-1.8.5.tar.gz && \
+    wget https://files.pythonhosted.org/packages/source/w/whatap_python/whatap_python-${WHATAP_AGENT_VERSION}.tar.gz && \
+    tar xzvf whatap_python-${WHATAP_AGENT_VERSION}.tar.gz && \
     mkdir -p /whatap-agent && \
-    cp -r whatap_python-1.8.5/* /whatap-agent/ && \
-    rm -rf whatap_python-1.8.5* && \
+    cp -r whatap_python-${WHATAP_AGENT_VERSION}/* /whatap-agent/ && \
+    rm -rf whatap_python-${WHATAP_AGENT_VERSION}* && \
     apt-get remove -y wget && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
@@ -57,4 +60,3 @@ RUN echo '#!/bin/bash' > /init.sh && \
 
 # 기본 명령어 설정
 CMD ["/init.sh"]
-

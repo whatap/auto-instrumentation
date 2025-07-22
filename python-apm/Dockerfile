@@ -8,8 +8,14 @@ WORKDIR /tmp
 
 # Python APM 에이전트 다운로드 및 압축 해제
 RUN apt-get update && apt-get install -y wget && \
-    wget https://files.pythonhosted.org/packages/source/w/whatap_python/whatap_python-${WHATAP_AGENT_VERSION}.tar.gz && \
-    tar xzvf whatap_python-${WHATAP_AGENT_VERSION}.tar.gz && \
+    if [ ! -d "whatap_python-${WHATAP_AGENT_VERSION}" ]; then \
+        echo "whatap_python-${WHATAP_AGENT_VERSION} 폴더가 없습니다. 다운로드를 시작합니다..." && \
+        wget https://files.pythonhosted.org/packages/source/w/whatap_python/whatap_python-${WHATAP_AGENT_VERSION}.tar.gz && \
+        tar xzvf whatap_python-${WHATAP_AGENT_VERSION}.tar.gz && \
+        rm -f whatap_python-${WHATAP_AGENT_VERSION}.tar.gz; \
+    else \
+        echo "whatap_python-${WHATAP_AGENT_VERSION} 폴더가 이미 존재합니다. 기존 폴더를 사용합니다."; \
+    fi && \
     mkdir -p /whatap-agent && \
     cp -r whatap_python-${WHATAP_AGENT_VERSION}/* /whatap-agent/ && \
     rm -rf whatap_python-${WHATAP_AGENT_VERSION}* && \

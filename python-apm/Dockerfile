@@ -6,6 +6,9 @@ ARG WHATAP_AGENT_VERSION=1.8.5
 # 작업 디렉터리 설정
 WORKDIR /tmp
 
+
+COPY whatap_python-${WHATAP_AGENT_VERSION}/ ./whatap_python-${WHATAP_AGENT_VERSION}/ 2>/dev/null || true
+
 # Python APM 에이전트 다운로드 및 압축 해제
 RUN apt-get update && apt-get install -y wget && \
     if [ ! -d "whatap_python-${WHATAP_AGENT_VERSION}" ]; then \

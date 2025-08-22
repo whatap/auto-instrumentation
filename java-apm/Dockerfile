@@ -22,36 +22,34 @@ RUN echo '#!/bin/bash' > /init.sh && \
     echo '' >> /init.sh && \
     echo '# 대상 디렉터리가 마운트되어 있는지 확인' >> /init.sh && \
     echo 'if [ ! -d "/whatap-agent" ]; then' >> /init.sh && \
-    echo '    echo "Error: /whatap-agent directory not mounted"' >> /init.sh && \
-    echo '    exit 1' >> /init.sh && \
+    echo '  echo "Error: /whatap-agent directory not mounted"' >> /init.sh && \
+    echo '  exit 1' >> /init.sh && \
     echo 'fi' >> /init.sh && \
     echo '' >> /init.sh && \
     echo '# Java agent 복사' >> /init.sh && \
     echo 'echo "Copying Java agent to /whatap-agent..."' >> /init.sh && \
     echo 'cp /whatap/whatap.agent.java.jar /whatap-agent/' >> /init.sh && \
     echo '' >> /init.sh && \
-    echo '# whatap.conf 파일 생성' >> /init.sh && \
-    echo 'echo "Generating whatap.conf..."' >> /init.sh && \
-    echo 'cat > /whatap-agent/whatap.conf << CONF' >> /init.sh && \
+    echo '# whatap.conf 파일은 존재할 때 덮어쓰지 않음 (Option C)' >> /init.sh && \
+    echo 'if [ ! -f "/whatap-agent/whatap.conf" ]; then' >> /init.sh && \
+    echo '  echo "Generating whatap.conf..."' >> /init.sh && \
+    echo '  cat > /whatap-agent/whatap.conf << CONF' >> /init.sh && \
     echo 'license=${WHATAP_LICENSE}' >> /init.sh && \
     echo 'whatap.server.host=${WHATAP_HOST}' >> /init.sh && \
     echo 'whatap.server.port=${WHATAP_PORT}' >> /init.sh && \
     echo 'whatap.micro.enabled=true' >> /init.sh && \
     echo 'CONF' >> /init.sh && \
-    echo '' >> /init.sh && \
-    echo '# Additional args 추가 (환경변수로 전달된 경우)' >> /init.sh && \
-    echo 'if [ ! -z "$ADDITIONAL_ARGS" ]; then' >> /init.sh && \
-    echo '    echo "Adding additional configuration..."' >> /init.sh && \
-    echo '    echo "$ADDITIONAL_ARGS" >> /whatap-agent/whatap.conf' >> /init.sh && \
+    echo 'else' >> /init.sh && \
+    echo '  echo "Existing whatap.conf detected, using ConfigMap-provided config. Skipping generation."' >> /init.sh && \
     echo 'fi' >> /init.sh && \
     echo '' >> /init.sh && \
     echo '# 권한 설정' >> /init.sh && \
-    echo 'chmod 644 /whatap-agent/whatap.conf' >> /init.sh && \
+    echo 'if [ -f "/whatap-agent/whatap.conf" ]; then chmod 644 /whatap-agent/whatap.conf; fi' >> /init.sh && \
     echo 'chmod 644 /whatap-agent/whatap.agent.java.jar' >> /init.sh && \
     echo '' >> /init.sh && \
     echo 'echo "Java agent installation completed successfully"' >> /init.sh && \
     echo 'echo "Agent file: /whatap-agent/whatap.agent.java.jar"' >> /init.sh && \
-    echo 'echo "Config file: /whatap-agent/whatap.conf"' >> /init.sh && \
+    echo 'if [ -f "/whatap-agent/whatap.conf" ]; then echo "Config file: /whatap-agent/whatap.conf"; fi' >> /init.sh && \
     chmod +x /init.sh
 
 # 5️⃣ InitContainer 실행 명령 변경

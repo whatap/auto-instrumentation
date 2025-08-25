@@ -23,46 +23,45 @@ RUN apt-get update && apt-get install -y wget && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-# Python 패키지 설치 - 이때 whatap-setting-config, whatap-start-agent 명령어 자동 생성됨
 WORKDIR /whatap-agent
-RUN python setup.py build && \
-    python setup.py install --prefix=/whatap-agent --install-lib=/whatap-agent/lib --install-scripts=/whatap-agent/bin && \
-    # bootstrap 디렉터리 복사 (sitecustomize.py 포함)
-    cp -r whatap/bootstrap /whatap-agent/
-
-# 빌드된 에이전트를 별도 위치에 백업 (InitContainer에서 사용)
-RUN cp -r /whatap-agent /whatap-agent-source
-
-# 초기화 스크립트 생성 (Java APM과 동일한 구조)
-RUN echo '#!/bin/bash' > /init.sh && \
+RUN echo '#!/bin/sh' > /init.sh && \
     echo 'set -e' >> /init.sh && \
-    echo '' >> /init.sh && \
-    echo '# 대상 디렉터리가 마운트되어 있는지 확인' >> /init.sh && \
-    echo 'if [ ! -d "/whatap-agent" ]; then' >> /init.sh && \
-    echo '    echo "Error: /whatap-agent directory not mounted"' >> /init.sh && \
-    echo '    exit 1' >> /init.sh && \
+    echo 'echo "[whatap-python-init] starting..."' >> /init.sh && \
+    echo 'if [ ! -d "/whatap-agent" ]; then echo "[whatap-python-init] Error: /whatap-agent directory not mounted"; exit 1; fi' >> /init.sh && \
+    echo 'WHATAP_HOME="/whatap-agent"' >> /init.sh && \
+    echo 'TARGET_FILE="${WHATAP_HOME}/whatap.conf"' >> /init.sh && \
+    echo 'if [ -f "$TARGET_FILE" ]; then' >> /init.sh && \
+    echo '  echo "[whatap-python-init] Existing $TARGET_FILE detected. Skipping generation."' >> /init.sh && \
+    echo 'else' >> /init.sh && \
+    echo '  L="${WHATAP_LICENSE:-$license}"' >> /init.sh && \
+    echo '  H="${WHATAP_HOST:-$whatap_server_host}"' >> /init.sh && \
+    echo '  P="${WHATAP_PORT:-$whatap_server_port}"' >> /init.sh && \
+    echo '  AN="${APP_NAME:-$app_name}"' >> /init.sh && \
+    echo '  APN="${APP_PROCESS_NAME:-$app_process_name}"' >> /init.sh && \
+    echo '  [ -n "$AN" ] || AN="python-app"' >> /init.sh && \
+    echo '  [ -n "$APN" ] || APN="python"' >> /init.sh && \
+    echo '  echo "[whatap-python-init] Generating $TARGET_FILE"' >> /init.sh && \
+    echo '  cat > "$TARGET_FILE" << EOF' >> /init.sh && \
+    echo 'license=$L' >> /init.sh && \
+    echo 'whatap.server.host=$H' >> /init.sh && \
+    echo 'whatap.server.port=$P' >> /init.sh && \
+    echo 'app_name=$AN' >> /init.sh && \
+    echo 'app_process_name=$APN' >> /init.sh && \
+    echo 'whatap_code_start=true' >> /init.sh && \
+    echo 'EOF' >> /init.sh && \
+    echo '  chmod 644 "$TARGET_FILE" 2>/dev/null || true' >> /init.sh && \
     echo 'fi' >> /init.sh && \
-    echo '' >> /init.sh && \
-    echo 'echo "Copying Whatap Python agent to /whatap-agent..."' >> /init.sh && \
-    echo '' >> /init.sh && \
-    echo '# 기존 파일이 있으면 백업' >> /init.sh && \
-    echo 'if [ "$(ls -A /whatap-agent 2>/dev/null)" ]; then' >> /init.sh && \
-    echo '    echo "Target directory not empty, cleaning up..."' >> /init.sh && \
-    echo '    rm -rf /whatap-agent/*' >> /init.sh && \
+    echo '# Ensure whatap_code_start=true is present even for existing configs' >> /init.sh && \
+    echo 'if grep -q "^whatap_code_start=" "$TARGET_FILE" 2>/dev/null; then' >> /init.sh && \
+    echo '  sed "s/^whatap_code_start=.*/whatap_code_start=true/" "$TARGET_FILE" > "${TARGET_FILE}.tmp" && mv "${TARGET_FILE}.tmp" "$TARGET_FILE"' >> /init.sh && \
+    echo 'else' >> /init.sh && \
+    echo '  echo "whatap_code_start=true" >> "$TARGET_FILE"' >> /init.sh && \
     echo 'fi' >> /init.sh && \
-    echo '' >> /init.sh && \
-    echo '# whatap-agent 디렉터리 전체를 대상 위치로 복사' >> /init.sh && \
-    echo 'cp -r /whatap-agent-source/* /whatap-agent/' >> /init.sh && \
-    echo '' >> /init.sh && \
-    echo '# 권한 설정' >> /init.sh && \
-    echo 'chmod -R 755 /whatap-agent' >> /init.sh && \
-    echo 'chmod +x /whatap-agent/bin/whatap-setting-config' >> /init.sh && \
-    echo 'chmod +x /whatap-agent/bin/whatap-start-agent' >> /init.sh && \
-    echo '' >> /init.sh && \
-    echo 'echo "Whatap Python agent installation completed successfully"' >> /init.sh && \
-    echo 'echo "Available commands:"' >> /init.sh && \
-    echo 'ls -la /whatap-agent/bin/whatap-*' >> /init.sh && \
+    echo 'chmod 644 "$TARGET_FILE" 2>/dev/null || true' >> /init.sh && \
+    echo 'echo "[whatap-python-init] done. whatap.conf: $TARGET_FILE"' >> /init.sh && \
     chmod +x /init.sh
+
+# CMD ["/init.sh"]는 기존대로 유지
 
 # 기본 명령어 설정
 CMD ["/init.sh"]

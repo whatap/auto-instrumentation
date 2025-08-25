@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y wget && \
     else \
         echo "whatap_python-${WHATAP_AGENT_VERSION} 폴더가 이미 존재합니다. 기존 폴더를 사용합니다."; \
     fi && \
-    mkdir -p /whatap-agent && \
-    cp -r whatap_python-${WHATAP_AGENT_VERSION}/* /whatap-agent/ && \
+    mkdir -p /opt/whatap-agent-dist && \
+    cp -r whatap_python-${WHATAP_AGENT_VERSION}/* /opt/whatap-agent-dist/ && \
     rm -rf whatap_python-${WHATAP_AGENT_VERSION}* && \
     apt-get remove -y wget && \
     apt-get autoremove -y && \
@@ -27,7 +27,13 @@ WORKDIR /whatap-agent
 RUN echo '#!/bin/sh' > /init.sh && \
     echo 'set -e' >> /init.sh && \
     echo 'echo "[whatap-python-init] starting..."' >> /init.sh && \
-    echo 'if [ ! -d "/whatap-agent" ]; then echo "[whatap-python-init] Error: /whatap-agent directory not mounted"; exit 1; fi' >> /init.sh && \
+    echo 'mkdir -p /whatap-agent' >> /init.sh && \
+    echo 'if [ ! -d "/whatap-agent/whatap" ]; then' >> /init.sh && \
+    echo '  echo "[whatap-python-init] whatap package not found under /whatap-agent. Seeding from /opt/whatap-agent-dist..."' >> /init.sh && \
+    echo '  cp -a /opt/whatap-agent-dist/. /whatap-agent/ 2>/dev/null || true' >> /init.sh && \
+    echo 'else' >> /init.sh && \
+    echo '  echo "[whatap-python-init] whatap package already present. Skipping seed."' >> /init.sh && \
+    echo 'fi' >> /init.sh && \
     echo 'WHATAP_HOME="/whatap-agent"' >> /init.sh && \
     echo 'TARGET_FILE="${WHATAP_HOME}/whatap.conf"' >> /init.sh && \
     echo 'if [ -f "$TARGET_FILE" ]; then' >> /init.sh && \

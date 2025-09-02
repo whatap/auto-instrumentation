@@ -64,6 +64,28 @@ RUN echo '#!/bin/sh' > /init.sh && \
     echo '  echo "whatap_code_start=true" >> "$TARGET_FILE"' >> /init.sh && \
     echo 'fi' >> /init.sh && \
     echo 'chmod 644 "$TARGET_FILE" 2>/dev/null || true' >> /init.sh && \
+    echo '# Apply standalone-related envs to whatap.conf if present' >> /init.sh && \
+    echo 'if [ -n "$STANDALONE_ENABLED" ]; then' >> /init.sh && \
+    echo '  if grep -q "^standalone_enabled=" "$TARGET_FILE" 2>/dev/null; then' >> /init.sh && \
+    echo '    sed "s|^standalone_enabled=.*|standalone_enabled=$STANDALONE_ENABLED|" "$TARGET_FILE" > "${TARGET_FILE}.tmp" && mv "${TARGET_FILE}.tmp" "$TARGET_FILE"' >> /init.sh && \
+    echo '  else' >> /init.sh && \
+    echo '    echo "standalone_enabled=$STANDALONE_ENABLED" >> "$TARGET_FILE"' >> /init.sh && \
+    echo '  fi' >> /init.sh && \
+    echo 'fi' >> /init.sh && \
+    echo 'if [ -n "$STANDALONE_TYPE" ]; then' >> /init.sh && \
+    echo '  if grep -q "^standalone_type=" "$TARGET_FILE" 2>/dev/null; then' >> /init.sh && \
+    echo '    sed "s|^standalone_type=.*|standalone_type=$STANDALONE_TYPE|" "$TARGET_FILE" > "${TARGET_FILE}.tmp" && mv "${TARGET_FILE}.tmp" "$TARGET_FILE"' >> /init.sh && \
+    echo '  else' >> /init.sh && \
+    echo '    echo "standalone_type=$STANDALONE_TYPE" >> "$TARGET_FILE"' >> /init.sh && \
+    echo '  fi' >> /init.sh && \
+    echo 'fi' >> /init.sh && \
+    echo 'if [ -n "$STANDALONE_TRANSACTION_PATTERNS" ]; then' >> /init.sh && \
+    echo '  if grep -q "^standalone_transaction_patterns=" "$TARGET_FILE" 2>/dev/null; then' >> /init.sh && \
+    echo '    sed "s|^standalone_transaction_patterns=.*|standalone_transaction_patterns=\"$STANDALONE_TRANSACTION_PATTERNS\"|" "$TARGET_FILE" > "${TARGET_FILE}.tmp" && mv "${TARGET_FILE}.tmp" "$TARGET_FILE"' >> /init.sh && \
+    echo '  else' >> /init.sh && \
+    echo '    echo "standalone_transaction_patterns=\"$STANDALONE_TRANSACTION_PATTERNS\"" >> "$TARGET_FILE"' >> /init.sh && \
+    echo '  fi' >> /init.sh && \
+    echo 'fi' >> /init.sh && \
     echo 'echo "[whatap-python-init] done. whatap.conf: $TARGET_FILE"' >> /init.sh && \
     chmod +x /init.sh
 

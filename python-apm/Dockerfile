@@ -65,6 +65,10 @@ RUN echo '#!/bin/sh' > /init.sh && \
     echo 'fi' >> /init.sh && \
     echo 'chmod 644 "$TARGET_FILE" 2>/dev/null || true' >> /init.sh && \
     echo '# Apply standalone-related envs to whatap.conf if present' >> /init.sh && \
+    echo '# Normalize lowercase envs to uppercase if uppercase is not set' >> /init.sh && \
+    echo 'STANDALONE_ENABLED="${STANDALONE_ENABLED:-$standalone_enabled}"' >> /init.sh && \
+    echo 'STANDALONE_TYPE="${STANDALONE_TYPE:-$standalone_type}"' >> /init.sh && \
+    echo 'STANDALONE_TRANSACTION_PATTERNS="${STANDALONE_TRANSACTION_PATTERNS:-$standalone_transaction_patterns}"' >> /init.sh && \
     echo 'if [ -n "$STANDALONE_ENABLED" ]; then' >> /init.sh && \
     echo '  if grep -q "^standalone_enabled=" "$TARGET_FILE" 2>/dev/null; then' >> /init.sh && \
     echo '    sed "s|^standalone_enabled=.*|standalone_enabled=$STANDALONE_ENABLED|" "$TARGET_FILE" > "${TARGET_FILE}.tmp" && mv "${TARGET_FILE}.tmp" "$TARGET_FILE"' >> /init.sh && \

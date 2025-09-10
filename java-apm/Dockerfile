@@ -53,4 +53,6 @@ RUN echo '#!/bin/bash' > /init.sh && \
     chmod +x /init.sh
 
 # 5️⃣ InitContainer 실행 명령 변경
+# Run as non-root by default for security/OpenShift compatibility
+USER 1001
 CMD ["/init.sh"]

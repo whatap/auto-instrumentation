@@ -96,4 +96,6 @@ RUN echo '#!/bin/sh' > /init.sh && \
 # CMD ["/init.sh"]는 기존대로 유지
 
 # 기본 명령어 설정
+# Run as non-root by default for security/OpenShift compatibility
+USER 1001
 CMD ["/init.sh"]

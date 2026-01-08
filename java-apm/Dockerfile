@@ -1,4 +1,4 @@
-FROM openjdk:8-jdk-slim
+FROM eclipse-temurin:8-jdk
 
 # 빌드 인자로 에이전트 버전을 받습니다
 ARG WHATAP_AGENT_VERSION=2.2.58

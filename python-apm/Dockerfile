@@ -8,6 +8,7 @@ WORKDIR /tmp
 
 # Python 3.12 이상에서는 setuptools가 기본 라이브러리에서 제외되므로 수동 설치 필요
 # (whatap_python 에이전트가 setuptools에 종속, 82 버전 미만 필요)
+# 앱 컨테이너에서도 사용할 수 있도록 PYTHONPATH 경로에 번들링합니다.
 RUN pip install --no-cache-dir 'setuptools<82'
 
 # Python APM 에이전트 다운로드 및 압축 해제
@@ -26,6 +27,14 @@ RUN apt-get update && apt-get install -y wget && \
     apt-get remove -y wget && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
+
+# setuptools<82의 pkg_resources와 setuptools를 에이전트 bootstrap 경로에 번들링
+# PYTHONPATH=/whatap-agent/whatap/bootstrap 으로 설정되므로, 앱 컨테이너에서
+# 자체 setuptools(>=81) 대신 번들된 버전이 우선 로드되어 pkg_resources 경고 방지
+RUN SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])") && \
+    mkdir -p /opt/whatap-agent-dist/whatap/bootstrap && \
+    cp -r ${SITE_PACKAGES}/pkg_resources /opt/whatap-agent-dist/whatap/bootstrap/ && \
+    cp -r ${SITE_PACKAGES}/setuptools /opt/whatap-agent-dist/whatap/bootstrap/
 
 WORKDIR /whatap-agent
 RUN echo '#!/bin/sh' > /init.sh && \

@@ -6,6 +6,10 @@ ARG WHATAP_AGENT_VERSION=1.8.5
 # 작업 디렉터리 설정
 WORKDIR /tmp
 
+# Python 3.12 이상에서는 setuptools가 기본 라이브러리에서 제외되므로 수동 설치 필요
+# (whatap_python 에이전트가 setuptools에 종속, 82 버전 미만 필요)
+RUN pip install --no-cache-dir 'setuptools<82'
+
 # Python APM 에이전트 다운로드 및 압축 해제
 RUN apt-get update && apt-get install -y wget && \
     if [ ! -d "whatap_python-${WHATAP_AGENT_VERSION}" ]; then \

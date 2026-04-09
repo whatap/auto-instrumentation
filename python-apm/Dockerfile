@@ -67,6 +67,7 @@ RUN echo '#!/bin/sh' > /init.sh && \
     echo 'app_name=$AN' >> /init.sh && \
     echo 'app_process_name=$APN' >> /init.sh && \
     echo 'whatap_code_start=true' >> /init.sh && \
+    echo 'apm_enabled=true' >> /init.sh && \
     echo 'EOF' >> /init.sh && \
     echo '  chmod 644 "$TARGET_FILE" 2>/dev/null || true' >> /init.sh && \
     echo 'fi' >> /init.sh && \
@@ -75,6 +76,12 @@ RUN echo '#!/bin/sh' > /init.sh && \
     echo '  sed "s/^whatap_code_start=.*/whatap_code_start=true/" "$TARGET_FILE" > "${TARGET_FILE}.tmp" && mv "${TARGET_FILE}.tmp" "$TARGET_FILE"' >> /init.sh && \
     echo 'else' >> /init.sh && \
     echo '  echo "whatap_code_start=true" >> "$TARGET_FILE"' >> /init.sh && \
+    echo 'fi' >> /init.sh && \
+    echo '# Ensure apm_enabled=true is present even for existing configs' >> /init.sh && \
+    echo 'if grep -q "^apm_enabled=" "$TARGET_FILE" 2>/dev/null; then' >> /init.sh && \
+    echo '  sed "s/^apm_enabled=.*/apm_enabled=true/" "$TARGET_FILE" > "${TARGET_FILE}.tmp" && mv "${TARGET_FILE}.tmp" "$TARGET_FILE"' >> /init.sh && \
+    echo 'else' >> /init.sh && \
+    echo '  echo "apm_enabled=true" >> "$TARGET_FILE"' >> /init.sh && \
     echo 'fi' >> /init.sh && \
     echo 'chmod 644 "$TARGET_FILE" 2>/dev/null || true' >> /init.sh && \
     echo '# Apply standalone-related envs to whatap.conf if present' >> /init.sh && \

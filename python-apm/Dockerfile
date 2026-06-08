@@ -1,40 +1,37 @@
 FROM python:3.10-slim
 
-# 빌드 인자로 에이전트 버전을 받습니다
-ARG WHATAP_AGENT_VERSION=1.8.5
+# 빌드 인자로 에이전트 버전을 받습니다 (정식 PyPI의 stable 버전 기본값)
+ARG WHATAP_AGENT_VERSION=2.0.2
+
+# 에이전트를 받을 PyPI 인덱스 (정식 PyPI 기본값)
+# dev 프리릴리스 등 특수한 경우에만 test.pypi 등으로 override 하세요.
+# 예: --build-arg WHATAP_PYPI_INDEX_URL=https://test.pypi.org/simple/
+ARG WHATAP_PYPI_INDEX_URL=https://pypi.org/simple/
 
 # 작업 디렉터리 설정
 WORKDIR /tmp
 
-# Python 3.12 이상에서는 setuptools가 기본 라이브러리에서 제외되므로 수동 설치 필요
-# (whatap_python 에이전트가 setuptools에 종속, 82 버전 미만 필요)
-# 앱 컨테이너에서도 사용할 수 있도록 PYTHONPATH 경로에 번들링합니다.
-RUN pip install --no-cache-dir 'setuptools<82'
-
-# Python APM 에이전트 다운로드 및 압축 해제
-RUN apt-get update && apt-get install -y wget && \
-    if [ ! -d "whatap_python-${WHATAP_AGENT_VERSION}" ]; then \
-        echo "whatap_python-${WHATAP_AGENT_VERSION} 폴더가 없습니다. 다운로드를 시작합니다..." && \
-        wget https://files.pythonhosted.org/packages/source/w/whatap_python/whatap_python-${WHATAP_AGENT_VERSION}.tar.gz && \
-        tar xzvf whatap_python-${WHATAP_AGENT_VERSION}.tar.gz && \
-        rm -f whatap_python-${WHATAP_AGENT_VERSION}.tar.gz; \
+# 새 whatap-python 에이전트는 self-contained로 배포되며 setuptools/pkg_resources에
+# 의존하지 않습니다. 배포물(wheel 또는 sdist)을 내려받아 whatap 패키지만 번들링합니다(설치 불필요).
+# - 정식 PyPI(stable): sdist(.tar.gz)로 배포될 수 있음
+# - test.pypi(dev): wheel(.whl)로 배포될 수 있음
+RUN pip download --no-deps --no-cache-dir \
+        --index-url ${WHATAP_PYPI_INDEX_URL} \
+        "whatap-python==${WHATAP_AGENT_VERSION}" -d /tmp/whatap-dl && \
+    mkdir -p /tmp/whatap-extracted && \
+    WHL=$(ls /tmp/whatap-dl/whatap_python-*.whl 2>/dev/null | head -n1) && \
+    if [ -n "${WHL}" ]; then \
+        echo "다운로드한 wheel: ${WHL}" && \
+        python -m zipfile -e "${WHL}" /tmp/whatap-extracted; \
     else \
-        echo "whatap_python-${WHATAP_AGENT_VERSION} 폴더가 이미 존재합니다. 기존 폴더를 사용합니다."; \
+        SDIST=$(ls /tmp/whatap-dl/whatap_python-*.tar.gz 2>/dev/null | head -n1) && \
+        echo "다운로드한 sdist: ${SDIST}" && \
+        tar xzf "${SDIST}" -C /tmp/whatap-extracted --strip-components=1; \
     fi && \
+    test -d /tmp/whatap-extracted/whatap && \
     mkdir -p /opt/whatap-agent-dist && \
-    cp -r whatap_python-${WHATAP_AGENT_VERSION}/* /opt/whatap-agent-dist/ && \
-    rm -rf whatap_python-${WHATAP_AGENT_VERSION}* && \
-    apt-get remove -y wget && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
-
-# setuptools<82의 pkg_resources와 setuptools를 에이전트 bootstrap 경로에 번들링
-# PYTHONPATH=/whatap-agent/whatap/bootstrap 으로 설정되므로, 앱 컨테이너에서
-# 자체 setuptools(>=81) 대신 번들된 버전이 우선 로드되어 pkg_resources 경고 방지
-RUN SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])") && \
-    mkdir -p /opt/whatap-agent-dist/whatap/bootstrap && \
-    cp -r ${SITE_PACKAGES}/pkg_resources /opt/whatap-agent-dist/whatap/bootstrap/ && \
-    cp -r ${SITE_PACKAGES}/setuptools /opt/whatap-agent-dist/whatap/bootstrap/
+    cp -r /tmp/whatap-extracted/whatap /opt/whatap-agent-dist/ && \
+    rm -rf /tmp/whatap-dl /tmp/whatap-extracted
 
 WORKDIR /whatap-agent
 RUN echo '#!/bin/sh' > /init.sh && \

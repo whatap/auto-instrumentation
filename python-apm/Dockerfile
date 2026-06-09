@@ -31,6 +31,8 @@ RUN pip download --no-deps --no-cache-dir \
     test -d /tmp/whatap-extracted/whatap && \
     mkdir -p /opt/whatap-agent-dist && \
     cp -r /tmp/whatap-extracted/whatap /opt/whatap-agent-dist/ && \
+    chmod -R a+rX /opt/whatap-agent-dist/whatap && \
+    find /opt/whatap-agent-dist/whatap/agent -type f -name 'whatap_python*' -exec chmod a+x {} + && \
     rm -rf /tmp/whatap-dl /tmp/whatap-extracted
 
 WORKDIR /whatap-agent

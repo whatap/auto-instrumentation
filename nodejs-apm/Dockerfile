@@ -31,6 +31,21 @@ RUN echo '#!/bin/sh' > /init.sh && \
     echo 'else' >> /init.sh && \
     echo '  echo "[whatap-nodejs-init] node_modules already present. Skipping seed."' >> /init.sh && \
     echo 'fi' >> /init.sh && \
+    echo '# Resolve arch-specific native binary to a stable path for WHATAP_NODEJS_AGENT_PATH (container-id mapping)' >> /init.sh && \
+    echo 'ARCH=$(uname -m)' >> /init.sh && \
+    echo 'case "$ARCH" in' >> /init.sh && \
+    echo '  x86_64|amd64) NARCH="amd64" ;;' >> /init.sh && \
+    echo '  aarch64|arm64) NARCH="arm64" ;;' >> /init.sh && \
+    echo '  *) NARCH="" ;;' >> /init.sh && \
+    echo 'esac' >> /init.sh && \
+    echo 'AGENT_DIR="/whatap-agent/node_modules/whatap/agent"' >> /init.sh && \
+    echo 'if [ -n "$NARCH" ] && [ -f "$AGENT_DIR/linux/$NARCH/whatap_nodejs" ]; then' >> /init.sh && \
+    echo '  cp -f "$AGENT_DIR/linux/$NARCH/whatap_nodejs" "$AGENT_DIR/whatap_nodejs" 2>/dev/null || true' >> /init.sh && \
+    echo '  chmod 755 "$AGENT_DIR/whatap_nodejs" 2>/dev/null || true' >> /init.sh && \
+    echo '  echo "[whatap-nodejs-init] resolved native agent binary for arch=$NARCH -> $AGENT_DIR/whatap_nodejs"' >> /init.sh && \
+    echo 'else' >> /init.sh && \
+    echo '  echo "[whatap-nodejs-init] WARN: could not resolve native agent binary (arch=$ARCH)"' >> /init.sh && \
+    echo 'fi' >> /init.sh && \
     echo 'WHATAP_HOME="/whatap-agent"' >> /init.sh && \
     echo 'TARGET_FILE="${WHATAP_HOME}/whatap.conf"' >> /init.sh && \
     echo 'if [ -f "$TARGET_FILE" ]; then' >> /init.sh && \

@@ -3,7 +3,7 @@
 # ===================================================================
 # Docker 이미지 빌드 및 푸시 자동화 스크립트 (Multi-Platform 지원)
 # 사용법: ./build_and_push.sh <version>
-# 예시:   ./build_and_push.sh 1.8.5
+# 예시:   ./build_and_push.sh 2.0.2
 # ===================================================================
 
 # --- ⚠️ 설정 (사용자 환경에 맞게 수정하세요) ---
@@ -22,6 +22,11 @@ IMAGE_NAME="${IMAGE_NAME:-apm-init-python}"
 # 지원할 플랫폼을 설정하세요.
 PLATFORMS="linux/amd64,linux/arm64"
 
+# 에이전트 배포물을 내려받을 PyPI 인덱스 URL입니다.
+# 기본값은 정식 PyPI이며, dev 프리릴리스 등 특수한 경우에만 아래 값을 재설정하세요.
+# 예: WHATAP_PYPI_INDEX_URL=https://test.pypi.org/simple/ ./build.sh 0.1.dev927
+WHATAP_PYPI_INDEX_URL="${WHATAP_PYPI_INDEX_URL:-https://pypi.org/simple/}"
+
 # --- 설정 끝 ---
 
 
@@ -32,7 +37,7 @@ set -e
 if [ -z "$1" ]; then
     echo "❌ 오류: 빌드할 에이전트 버전을 첫 번째 인자로 전달해야 합니다."
     echo "   사용법: $0 <version>"
-    echo "   예시: $0 1.8.5"
+    echo "   예시: $0 2.0.2"
     exit 1
 fi
 
@@ -88,6 +93,7 @@ echo "   지원 플랫폼: ${PLATFORMS}"
 docker buildx build \
   --platform ${PLATFORMS} \
   --build-arg WHATAP_AGENT_VERSION=${VERSION} \
+  --build-arg WHATAP_PYPI_INDEX_URL=${WHATAP_PYPI_INDEX_URL} \
   -t ${TAG_VERSION} \
   $( [ "${PUSH_LATEST}" = "true" ] && echo "-t ${TAG_LATEST}" ) \
   --push .

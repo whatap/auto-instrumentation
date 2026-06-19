@@ -12,10 +12,12 @@
 # --- 설정 (사용자 환경에 맞게 수정하세요) ---
 
 # 이미지를 푸시할 Docker 레지스트리 주소
-REGISTRY="public.ecr.aws/whatap"
+# env REGISTRY 로 오버라이드 가능 (dev: docker.io/whatap, 기본 release: public.ecr.aws/whatap)
+REGISTRY="${REGISTRY:-public.ecr.aws/whatap}"
 
 # 생성할 이미지의 이름
-IMAGE_NAME="apm-init-nodejs"
+# env IMAGE_NAME 으로 오버라이드 가능 (dev: dev_apm-init-nodejs)
+IMAGE_NAME="${IMAGE_NAME:-apm-init-nodejs}"
 
 # 지원할 플랫폼을 설정하세요.
 PLATFORMS="linux/amd64,linux/arm64"

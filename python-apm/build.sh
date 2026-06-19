@@ -12,10 +12,12 @@
 # 예: docker.io/myusername (Docker Hub)
 # 예: 1234567890.dkr.ecr.ap-northeast-2.amazonaws.com (AWS ECR)
 # 예: gcr.io/my-gcp-project (Google GCR)
-REGISTRY="public.ecr.aws/whatap"
+# env REGISTRY 로 오버라이드 가능 (dev: docker.io/whatap, 기본 release: public.ecr.aws/whatap)
+REGISTRY="${REGISTRY:-public.ecr.aws/whatap}"
 
 # 생성할 이미지의 이름을 입력하세요.
-IMAGE_NAME="apm-init-python"
+# env IMAGE_NAME 으로 오버라이드 가능 (dev: dev_apm-init-python)
+IMAGE_NAME="${IMAGE_NAME:-apm-init-python}"
 
 # 지원할 플랫폼을 설정하세요.
 PLATFORMS="linux/amd64,linux/arm64"
@@ -36,9 +38,18 @@ fi
 
 # 변수 설정
 VERSION=$1
+# IMAGE_TAG: 이미지 태그(env 로 오버라이드 가능). 미지정 시 에이전트 버전과 동일.
+# dev 빌드는 IMAGE_TAG 에 '-'(예: 1.8.5-dev)를 넣어 latest 푸시를 건너뛴다.
+IMAGE_TAG="${IMAGE_TAG:-$VERSION}"
 FULL_IMAGE_NAME="${REGISTRY}/${IMAGE_NAME}"
-TAG_VERSION="${FULL_IMAGE_NAME}:${VERSION}"
+TAG_VERSION="${FULL_IMAGE_NAME}:${IMAGE_TAG}"
 TAG_LATEST="${FULL_IMAGE_NAME}:latest"
+
+# 태그에 '-'(예: -dev, -rc)가 포함되면 pre-release 로 보고 latest 태그는 건너뜁니다.
+PUSH_LATEST=true
+case "${IMAGE_TAG}" in
+    *-*) PUSH_LATEST=false ;;
+esac
 
 # 스크립트 시작
 echo "=================================================="
@@ -47,7 +58,11 @@ echo "--------------------------------------------------"
 echo "  - Agent Version : ${VERSION}"
 echo "  - Image Name    : ${FULL_IMAGE_NAME}"
 echo "  - Version Tag   : ${TAG_VERSION}"
-echo "  - Latest Tag    : ${TAG_LATEST}"
+if [ "${PUSH_LATEST}" = "true" ]; then
+    echo "  - Latest Tag    : ${TAG_LATEST}"
+else
+    echo "  - Latest Tag    : (skip: pre-release)"
+fi
 echo "  - Platforms     : ${PLATFORMS}"
 echo "=================================================="
 echo
@@ -74,7 +89,7 @@ docker buildx build \
   --platform ${PLATFORMS} \
   --build-arg WHATAP_AGENT_VERSION=${VERSION} \
   -t ${TAG_VERSION} \
-  -t ${TAG_LATEST} \
+  $( [ "${PUSH_LATEST}" = "true" ] && echo "-t ${TAG_LATEST}" ) \
   --push .
 echo "✅ Multi-platform 빌드 및 푸시 완료!"
 echo
@@ -82,4 +97,6 @@ echo
 echo "🎉 모든 작업이 성공적으로 완료되었습니다."
 echo "📋 빌드된 이미지:"
 echo "   - ${TAG_VERSION} (${PLATFORMS})"
-echo "   - ${TAG_LATEST} (${PLATFORMS})"
+if [ "${PUSH_LATEST}" = "true" ]; then
+    echo "   - ${TAG_LATEST} (${PLATFORMS})"
+fi

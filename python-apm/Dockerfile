@@ -1,7 +1,7 @@
 FROM python:3.10-slim
 
 # 빌드 인자로 에이전트 버전을 받습니다 (정식 PyPI의 stable 버전 기본값)
-ARG WHATAP_AGENT_VERSION=2.0.2
+ARG WHATAP_AGENT_VERSION=2.2.1
 
 # 에이전트를 받을 PyPI 인덱스 (정식 PyPI 기본값)
 # dev 프리릴리스 등 특수한 경우에만 test.pypi 등으로 override 하세요.
@@ -35,6 +35,11 @@ RUN pip download --no-deps --no-cache-dir \
     find /opt/whatap-agent-dist/whatap/agent -type f -name 'whatap_python*' -exec chmod a+x {} + && \
     rm -rf /tmp/whatap-dl /tmp/whatap-extracted
 
+# LLM collector is distributed separately from PyPI. Download only at image
+# build time, verify the pinned archive, and keep the APM binary untouched.
+COPY bundle_llm.py /tmp/bundle_llm.py
+RUN python /tmp/bundle_llm.py && rm /tmp/bundle_llm.py
+
 WORKDIR /whatap-agent
 RUN echo '#!/bin/sh' > /init.sh && \
     echo 'set -e' >> /init.sh && \
@@ -42,10 +47,20 @@ RUN echo '#!/bin/sh' > /init.sh && \
     echo 'mkdir -p /whatap-agent' >> /init.sh && \
     echo 'if [ ! -d "/whatap-agent/whatap" ]; then' >> /init.sh && \
     echo '  echo "[whatap-python-init] whatap package not found under /whatap-agent. Seeding from /opt/whatap-agent-dist..."' >> /init.sh && \
-    echo '  cp -a /opt/whatap-agent-dist/. /whatap-agent/ 2>/dev/null || true' >> /init.sh && \
+    echo '  cp -R /opt/whatap-agent-dist/whatap /whatap-agent/' >> /init.sh && \
     echo 'else' >> /init.sh && \
     echo '  echo "[whatap-python-init] whatap package already present. Skipping seed."' >> /init.sh && \
     echo 'fi' >> /init.sh && \
+    echo '# LLM 2.2.1 resolves $WHATAP_HOME/linux/<arch>/whatap_python, separately from APM.' >> /init.sh && \
+    echo 'echo "[whatap-python-init] Seeding LLM modules..."' >> /init.sh && \
+    echo 'for ARCH in amd64 arm64; do' >> /init.sh && \
+    echo '  LLM_DIR="/whatap-agent/linux/$ARCH"' >> /init.sh && \
+    echo '  mkdir -p "$LLM_DIR"' >> /init.sh && \
+    echo '  cp "/opt/whatap-agent-dist/linux/$ARCH/whatap_python" "$LLM_DIR/whatap_python"' >> /init.sh && \
+    echo '  chmod 755 "$LLM_DIR/whatap_python"' >> /init.sh && \
+    echo '  test -s "$LLM_DIR/whatap_python"' >> /init.sh && \
+    echo '  test -x "$LLM_DIR/whatap_python"' >> /init.sh && \
+    echo 'done' >> /init.sh && \
     echo 'WHATAP_HOME="/whatap-agent"' >> /init.sh && \
     echo 'TARGET_FILE="${WHATAP_HOME}/whatap.conf"' >> /init.sh && \
     echo 'if [ -f "$TARGET_FILE" ]; then' >> /init.sh && \

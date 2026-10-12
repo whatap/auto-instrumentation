@@ -95,11 +95,40 @@ PLATFORMS="linux/amd64,linux/arm64"
 
 Dockerfile은 다음 작업을 수행합니다:
 
-1. **에이전트 다운로드**: PyPI에서 지정된 버전의 whatap-python 패키지 다운로드
-2. **패키지 빌드 및 설치**: Python setup.py를 사용하여 패키지 빌드 및 설치
-3. **명령어 생성**: `whatap-setting-config`, `whatap-start-agent` 명령어 자동 생성
-4. **Bootstrap 파일 복사**: `sitecustomize.py` 등 필요한 bootstrap 파일 복사
-5. **InitContainer 스크립트**: 에이전트를 `/whatap-agent/` 디렉토리로 복사하는 초기화 스크립트 생성
+1. **에이전트 다운로드**: PyPI에서 지정된 버전의 `whatap-python` 배포물을 내려받아 `whatap/` 패키지를 번들링합니다.
+2. **LLM Go 모듈 다운로드**: 공식 `repo.whatap.io` 배포물을 빌드 시 내려받고, `bundle_llm.py`에 고정된 SHA-256과 Linux ELF 아키텍처를 검증합니다. Linux AMD64·ARM64 실행파일만 포함합니다.
+3. **InitContainer 스크립트**: 패키지를 `/whatap-agent/whatap/`으로, LLM 실행파일을 `/whatap-agent/linux/{amd64,arm64}/whatap_python`으로 복사합니다. LLM 파일은 기존 패키지 존재 여부와 무관하게 복사하고 누락·복사 실패를 숨기지 않습니다.
+4. **자동 시작**: Operator가 설정한 `PYTHONPATH`의 `sitecustomize.py`로 SDK가 기동합니다. 일반 APM과 LLM의 활성화·연결 설정은 서로 별개입니다.
+
+### LLM 자동 주입 (SDK 2.2.1 계약)
+
+이 이미지에는 LLM Go 모듈이 포함되지만 **LLM을 자동으로 활성화하거나 기존 APM 액세스 키를 재사용하지 않습니다.** 일반 APM 실행파일 `/whatap-agent/whatap_python`도 덮어쓰지 않습니다. Pod 기동 시에는 별도의 다운로드가 필요하지 않습니다.
+
+**실제 배포물 기준 경로:** SDK 2.2.1과 공식 tar는 `$WHATAP_HOME/linux/<arch>/whatap_python`을 사용합니다. `$WHATAP_HOME/whatap-python-llm/` 아래에만 압축을 풀면 이 SDK가 찾지 못합니다. 공식 URL은 버전 없는 주소이므로 내용이 변경되면 빌드를 실패시키며, 새 배포물의 경로·플랫폼을 검증한 뒤 `bundle_llm.py`의 해시를 갱신해야 합니다.
+
+LLM을 사용할 대상에만 다음 설정을 **기존 APM 설정에 추가**합니다. Operator의 대상별 `config.mode: custom` 및 `config.configMapRef`로 기존과 같이 `whatap.conf`를 전달할 수 있습니다. 실제 키는 예제나 저장소에 기록하지 마세요.
+
+```properties
+llm_enabled=true
+llm_accesskey=<LLM_PROJECT_ACCESS_KEY>
+llm.whatap.server.host=<LLM_COLLECTOR_HOST>
+counter_thread_enabled=true
+```
+
+- SDK 2.2.1은 `llm_accesskey`를 읽습니다. `llm_license`만 설정하면 LLM이 비활성화됩니다.
+- init의 기존 `whatap_code_start=true`, `apm_enabled=true` 정책은 유지합니다. 별도의 `whatap-llm-setting-config` 명령은 APM을 비활성화하므로 APM·LLM 동시 계측을 위해 여기에서 호출하지 않습니다. 이 변경은 LLM-only 모드의 정책 변경이 아닙니다.
+- **앱 Python 의존성은 별도입니다.** `datasketches>=5.2.0`, `genai-prices` 및 전이 의존성을 앱 이미지의 실제 Python 버전·아키텍처에 맞춰 설치해야 합니다. init 이미지의 Python 3.10 네이티브 라이브러리를 다른 Python ABI에 복사하지 않습니다. 누락 시 분위수·비용 등 일부 데이터가 빠질 수 있으며, Go 프로세스 기동만으로 전체 LLM 수집이 검증되지는 않습니다.
+- 승인된 새 init 이미지 참조로 변경한 뒤 해당 애플리케이션 Pod를 재생성해야 적용됩니다. 이미지 빌드·게시와 고객 Pod 적용은 별개입니다. 기존 공개 태그를 덮어쓰지 마세요.
+
+회귀 검증:
+
+```bash
+python3 -m unittest discover -s tests -v
+# 네트워크 차단·비루트 컨테이너 안에서 실행하는 추가 검증:
+# tests/image_smoke.py — 실제 sitecustomize → SDK → APM/LLM Go 기동 확인
+```
+
+`image_smoke.py`는 가짜 키와 loopback 주소만 사용하며, 실제 수집 서버 전송이나 LLM 토큰·비용 데이터 수집을 검증하지 않습니다.
 
 ## 🎯 Kubernetes에서 사용
 
